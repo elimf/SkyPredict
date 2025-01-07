@@ -10,17 +10,25 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (input.trim()) {
       const newMessage: Message = { text: input, sender: 'user' };
       setMessages([...messages, newMessage]);
       setInput('');
 
-      // Simulate a response from the bot
-      setTimeout(() => {
-        const botResponse: Message = { text: 'Bot: I received your message!', sender: 'bot' };
-        setMessages((prevMessages) => [...prevMessages, botResponse]);
-      }, 1000);
+      // Envoyer le message au backend FastAPI
+      const response = await fetch('http://127.0.0.1:8000/send_message/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newMessage),
+      });
+
+      const data = await response.json();
+
+      // Ajouter les messages retournés par l'API à l'état
+      setMessages(data.messages);
     }
   };
 
