@@ -1,5 +1,6 @@
 import plotly.express
 import pandas as pd
+import os
 from comet_ml import Experiment
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
@@ -61,7 +62,7 @@ df = day_in_Life(df, 2)
 num_selector = make_column_selector(dtype_include=np.number)
 num_tree_processor = SimpleImputer(strategy="mean", add_indicator=True)
 tree_preprocessor = make_column_transformer((num_tree_processor, num_selector))
-reg = make_pipeline(tree_preprocessor, RandomForestRegressor(n_estimators=100, random_state=42))
+rfr_pipeline = make_pipeline(tree_preprocessor, RandomForestRegressor(n_estimators=100, random_state=42))
 
 # Division des données
 x = df[['precipitation', 'windspeed', 'pressure', 'year', 'month', 'day']]
@@ -69,15 +70,21 @@ y = df['tempmean']
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
 
 # Entraînement du modèle
-reg.fit(x_train, y_train)
+rfr_pipeline.fit(x_train, y_train)
 
 # Enregistrement du modèle
-# joblib.dump(reg, "reg.pkl")
-experiment.log_model("TheModel", "reg.pkl")
+joblib.dump(rfr_pipeline, "rfr_pipeline.pkl")
+experiment.log_model("TheModel", "rfr_pipeline.pkl")
+# Supprimer le fichier généré après avoir loggé le modèle
+if os.path.exists("rfr_pipeline.pkl"):
+    os.remove("rfr_pipeline.pkl")
+    print("Fichier 'rfr_pipeline.pkl' supprimé avec succès.")
+else:
+    print("Le fichier 'rfr_pipeline.pkl' n'existe pas.")
 
 # Évaluation du modèle
-train_score = reg.score(x_train, y_train) * 100
-test_score = reg.score(x_test, y_test) * 100
+train_score = rfr_pipeline.score(x_train, y_train) * 100
+test_score = rfr_pipeline.score(x_test, y_test) * 100
 print("Train score:", train_score)
 print("Test score:", test_score)
 

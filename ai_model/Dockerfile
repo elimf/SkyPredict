@@ -5,8 +5,7 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # Copier les fichiers nécessaires dans le conteneur
-COPY app/main.py /app/
-COPY app/requirements.txt /app/
+COPY app/ /app/
 
 # Installer les dépendances
 RUN pip install --no-cache-dir -r /app/requirements.txt

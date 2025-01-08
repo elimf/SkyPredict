@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
+import os
 import pandas as pd
 import numpy as np
 from comet_ml import Experiment
@@ -10,6 +11,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.compose import make_column_transformer
 from sklearn.impute import SimpleImputer
 from sklearn.compose import make_column_selector
+import joblib
 
 # Configuration de Comet.ml
 experiment = Experiment(
@@ -70,9 +72,6 @@ def day_in_Life(df, number):
         df[[f"tempmean{i}", f"tempmax{i}"]] = df.groupby(['town'])[["tempmean", "tempmax"]].shift(i)
     return df
 
-# Fonction pour enregistrer le modèle dans Comet.ml
-def log_model_to_comet(model):
-    experiment.log_model("TheModel", model)
 
 # Fonction pour récupérer le modèle depuis Comet.ml
 def load_model_from_comet(model_name="TheModel"):
@@ -97,7 +96,7 @@ async def fit_model():
         df = pd.read_csv("weather.csv")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Le fichier 'weather.csv' est introuvable.")
-    
+    print("Fichier chargé avec succès")
     # Prétraiter les données
     df = data_preparation_0(df)
     df = data_preparation_1(df)
@@ -113,8 +112,14 @@ async def fit_model():
     model_pipeline.fit(x_train, y_train)
     
     # Enregistrer le modèle dans Comet.ml
-    log_model_to_comet(model_pipeline)
-        
+    joblib.dump(model_pipeline, "model_pipeline.pkl")
+    experiment.log_model("TheModel", "model_pipeline.pkl")
+    # Supprimer le fichier généré après avoir loggé le modèle
+    if os.path.exists("model_pipeline.pkl"):
+        os.remove("model_pipeline.pkl")
+        print("Fichier 'model_pipeline.pkl' supprimé avec succès.")
+    else:
+        print("Le fichier 'model_pipeline.pkl' n'existe pas.")  
     # Log des métriques dans Comet.ml
     log_metrics_to_comet(model_pipeline, x_test, y_test)
     
