@@ -17,7 +17,7 @@ function App() {
       setInput('');
 
       // Envoyer le message au backend FastAPI
-      const response = await fetch('http://127.0.0.1:8000/send_message/', {
+      const response = await fetch('http://127.0.0.1:8000/predict/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
