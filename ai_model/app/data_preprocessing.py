@@ -1,32 +1,40 @@
 import pandas as pd
 
-def prepare_data(df, number):
-    # Renommer les colonnes
-    for i in df.columns:
-        l = i.split("_")
-        if len(l) != 1:
-            if len(l) > 2:
-                i1 = l[1] + l[2]
-            else:
-                i1 = l[1]
-            i1 += "_" + l[0]
-            df.rename(columns={i: i1}, inplace=True)
-    
-    # Reformatage des données
+# Renommer les colonnes
+def data_preparation_0(df):
+    for i in df.columns :
+      l = i.split("_") 
+      if len(l)!=1:
+        if len(l)>2:
+          i1 = l[1]+l[2]
+        else:
+          i1 = l[1]
+        i1 += "_"+l[0]
+        df.rename(columns={i:i1},inplace=True)
+    return df
+# Reformatage des données
+def data_preparation_1(df):
     df["id"] = df.index
-    df_temp = pd.wide_to_long(df.reset_index(), stubnames=['precipitation', 'tempmean', 'tempmin', 'tempmax', 'windspeed', 'pressure'], i=['DATE'], j='town', sep='_', suffix='.+')
-    df_temp.reset_index(inplace=True)
-    df_final = df_temp[['precipitation', 'tempmean', 'tempmin', 'tempmax', 'windspeed', 'pressure']]
-    
-    #Extraire les caractéristiques de la date
-    df_final['DATE'] = pd.to_datetime(df_final['DATE'], format='%Y%m%d')
-    df_final['year'] = df_final['DATE'].dt.year
-    df_final['month'] = df_final['DATE'].dt.month
-    df_final['day'] = df_final['DATE'].dt.day
-    df_final = df_final.drop(columns='DATE')
-    
-    # Ajouter les décalages pour les colonnes de température (tempmean et tempmax)
+    df_long = pd.wide_to_long(df.reset_index(), stubnames=[
+       'precipitation', 'tempmean', 'tempmin',
+       'tempmax','windspeed','pressure'], i=['DATE'], j='town',sep='_',suffix='.+')
+    df_long.reset_index()
+    df_long
+    df3 = df_long[['precipitation', 'tempmean', 'tempmin',
+       'tempmax','windspeed','pressure']]
+    df3.reset_index(inplace=True)
+    return df3 
+# Extraire les caractéristiques de la date  
+def extract_date_features(df):
+    df['DATE'] = pd.to_datetime(df['DATE'], format='%Y%m%d')
+    df['year'] = df['DATE'].dt.year
+    df['month'] = df['DATE'].dt.month
+    df['day'] = df['DATE'].dt.day
+    df = df.drop(columns='DATE')
+    return df  
+# Ajouter les décalages pour les colonnes de température (tempmean et tempmax)
+def day_in_Life(df, number):
     for i in range(1, number + 1):
-        df_final[[f"tempmean{i}", f"tempmax{i}"]] = df_final.groupby(['town'])[["tempmean", "tempmax"]].shift(i)
-    # Retourner le DataFrame préparé
-    return df_final
+        df[[f"tempmean{i}",f"tempmax{i}"]] = df.groupby(['town'])[["tempmean","tempmax"]].shift(i)
+    return df
+  

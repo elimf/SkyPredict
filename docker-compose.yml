@@ -1,0 +1,25 @@
+services:
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "80:80"   # L'application React sera accessible sur le port 80
+    depends_on:
+      - backend   # Le frontend dépend du backend
+
+  # Backend FastAPI
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"   # API FastAPI accessible sur le port 8000
+    depends_on:
+      - ai_model      # Le backend dépend de l'API du modèle AI
+
+  # API FastAPI du modèle AI
+  ai_model:
+    build:
+      context: ./ai_model
+    ports:
+      - "8001:8001"   # API FastAPI du modèle AI accessible sur le port 8001
