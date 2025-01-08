@@ -1,0 +1,52 @@
+# Python specific
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# IDE specific
+.idea/
+.vscode/
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# Pytest cache
+.pytest_cache/
+.tox/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Local .env files
+.env
+.env.*
+
+# Migrations
+migrations/
+
+# Coverage reports
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Static and media files
+/static/
+/media/
+
+# Node modules (if using JavaScript frontend)
+node_modules/
+
+# Build files
+build/
+dist/
+*.egg-info/
