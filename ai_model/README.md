@@ -1,6 +1,6 @@
-# SkyPredict Backend
+# SkyPredict IA
 
-Lancer le backend
+Lancer le l'ia
 
 ```
 uvicorn app.main:app --reload
