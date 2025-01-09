@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List
 import os
@@ -20,7 +22,19 @@ experiment = Experiment(
     workspace="elimf"
 )
 
+
 app = FastAPI()
+allowed_origins = [
+    "http://localhost:8000"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["X-Requested-With", "Content-Type"],
+)
 
 # Définition du modèle de données pour la prédiction
 class PredictData(BaseModel):
@@ -145,4 +159,4 @@ async def predict(predict_data: PredictData):
 
 @app.get("/healthcheck")
 async def healthcheck():
-    return {"status": "L'API est opérationnelle"}
+    return JSONResponse(content={"status": "L'API est opérationnelle"})

@@ -1,25 +1,38 @@
+version: "3.8"
+
 services:
-  # Frontend React
+  # Frontend React avec Nginx
   frontend:
     build:
-      context: ./frontend
+      context: ./frontend  # Dossier où se trouve le Dockerfile pour l'application React
     ports:
       - "80:80"   # L'application React sera accessible sur le port 80
     depends_on:
       - backend   # Le frontend dépend du backend
+    networks:
+      - app-network  # Utilisation d'un réseau Docker commun
 
-  # Backend FastAPI
+  # Backend FastAPI pour gérer les requêtes et appeler l'API du modèle AI
   backend:
     build:
-      context: ./backend
+      context: ./backend  # Dossier où se trouve le Dockerfile pour l'application FastAPI
     ports:
       - "8000:8000"   # API FastAPI accessible sur le port 8000
     depends_on:
       - ai_model      # Le backend dépend de l'API du modèle AI
+    networks:
+      - app-network   # Utilisation d'un réseau Docker commun
 
-  # API FastAPI du modèle AI
+  # API FastAPI pour l'IA (modèle AI)
   ai_model:
     build:
-      context: ./ai_model
+      context: ./ai_model  # Dossier où se trouve le Dockerfile pour l'API du modèle AI
     ports:
       - "8001:8001"   # API FastAPI du modèle AI accessible sur le port 8001
+    networks:
+      - app-network   # Utilisation d'un réseau Docker commun
+
+# Définition du réseau Docker partagé pour tous les services
+networks:
+  app-network:
+    driver: bridge

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import './App.css';
+import axios from 'axios';
+
 
 interface Message {
   text: string;
@@ -17,18 +19,20 @@ function App() {
       setInput('');
 
       // Envoyer le message au backend FastAPI
-      const response = await fetch('http://localhost:8000/predict/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newMessage),
-      });
+      try {
+        const response = await axios.post('http://localhost:8000/predict', newMessage, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+    
+        console.log(response.data);
+        const data = await response.data
+        setMessages(data.messages);
+      } catch (error) {
+        console.error('Erreur lors de l\'envoi du message:', error);
+      }
 
-      const data = await response.json();
-
-      // Ajouter les messages retournés par l'API à l'état
-      setMessages(data.messages);
     }
   };
 
