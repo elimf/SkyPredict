@@ -306,4 +306,24 @@ async def healthcheck():
 
 @app.get("/explain")
 async def explain():
-    return JSONResponse(content={"message": "Explication de l'API"})
+    explanation = {
+        "message": "Cette API permet de faire des prédictions sur la température à partir de différents modèles statistiques et machine learning.",
+        "predict_model": {
+            "description": "Le modèle de régression Random Forest est utilisé pour prédire la température basée sur diverses caractéristiques comme les précipitations, la vitesse du vent, etc.",
+            "input_features": ["precipitation", "windspeed", "pressure", "year", "month", "day"],
+            "output": "température moyenne prévue (tempmean)."
+        },
+        "prophet_model": {
+            "description": "Le modèle Prophet est utilisé pour effectuer des prévisions basées sur des séries temporelles, avec des ajustements spécifiques pour les tendances saisonnières.",
+            "input_features": ["date", "température moyenne", "température minimale/maximale"],
+            "output": "température prévue pour une date spécifique accompagné de la température minimale et maximale."
+        },
+        "usage": {
+            "fit_model": "/fit : Entraînement d'un modèle avec les données météo.",
+            "predict": "/predict : Faire une prédiction de température en fonction des données fournies.",
+            "fit_prophet": "/fit-prophet : Entraînement du modèle Prophet.",
+            "predict_prophet": "/predict-prophet : Faire une prédiction avec le modèle Prophet."
+        },
+        "note": "L'API accepte les données en format JSON. Les données de prédiction doivent contenir des informations comme les précipitations, la vitesse du vent, et d'autres caractéristiques météorologiques."
+    }
+    return JSONResponse(content=explanation)
