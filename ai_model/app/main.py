@@ -225,9 +225,7 @@ async def fit_prophet(data : TrainRequest):
     return {"message": "Modèle entraîné et sauvegardé avec succès"}
 
 @app.post("/predict")
-async def predict(data: DataCity):
-    # Validation des données de prédiction
-    
+async def predict(data: DataCity):    
     try:
         # Assurez-vous que les données sont sous forme de liste
         ending_date = pd.to_datetime(data.date, format="%Y-%m-%d")

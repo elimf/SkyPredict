@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -33,6 +33,19 @@ function ChatPage() {
   const [selectedModel, setSelectedModel] = useState<string>(model[0].name);
   const [selectedDate, setSelectedDate] = useState<string>('');
 
+  // Charger les messages du localStorage lors du premier rendu
+  useEffect(() => {
+    const storedMessages = localStorage.getItem('messages');
+    if (storedMessages) {
+      setMessages(JSON.parse(storedMessages));
+    }
+  }, []);
+
+  // Sauvegarder les messages dans localStorage chaque fois qu'ils sont modifiés
+  useEffect(() => {
+    localStorage.setItem('messages', JSON.stringify(messages));
+  }, [messages]);
+
   const handleSend = async () => {
     if (!selectedCountry.trim() || !selectedDate || !selectedModel.trim()) {
       toast.error('Veuillez remplir tous les champs avant de continuer.');
@@ -40,12 +53,19 @@ function ChatPage() {
     }
 
     const newMessage: Message = { text: `${selectedCountry} - ${selectedDate} (${selectedModel})`, sender: 'user' };
-    setMessages([...messages, newMessage]);
-    const newPrediction : Predict= {town : selectedCountry, date : selectedDate, model: selectedModel, sender: 'user'}
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+
+    const newPrediction: Predict = {
+      town: selectedCountry,
+      date: selectedDate,
+      model: selectedModel,
+      sender: 'user',
+    };
+
     try {
       const response = await axios.post('http://localhost:8000/predict', newPrediction);
       const data = response.data;
-      setMessages([...messages, { text: data.response, sender: 'bot' }]);
+      setMessages((prevMessages) => [...prevMessages, { text: data.messages.text, sender: 'bot' }]);
       toast.success('Prédiction réussie !');
     } catch (error) {
       console.error("Erreur lors de l'envoi du message:", error);
@@ -81,7 +101,7 @@ function ChatPage() {
           ))}
         </select>
         <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
-        <button onClick={handleSend}>Send</button>
+        <button onClick={handleSend}>Predict</button>
       </div>
       <ToastContainer />
     </div>

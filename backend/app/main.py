@@ -54,10 +54,6 @@ app.add_middleware(
 # Définir le routeur pour les différentes routes de l'API
 router = APIRouter()
 
-# Liste pour stocker les prédictions effectuées
-predicts: List[Predict] = []
-
-
 async def predictRandomForest(data: DataCity):
     # Appeler directement l'API externe pour obtenir la prédiction
     url = "http://ai_model:8001/predict"
@@ -80,9 +76,7 @@ async def predictRandomForest(data: DataCity):
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
 
     # Simuler la réponse du bot et l'ajouter à la liste des prédictions
-    bot_predict = Predict(town=predict.town, sender="bot", date=predict.date, prediction=external_response['predictions'])
-    predicts.append(bot_predict)
-    msg = f"La température prévue pour le {bot_predict.date} est en moyenne de {bot_predict.prediction[0]}°C."
+    msg = f"La température prévue pour le {data.date.strftime('%d/%m/%Y')} est en moyenne de {external_response['prediction'][0]:.2f}°C."
     print(msg)
     return Message(text=msg, sender="bot")
 
@@ -112,7 +106,6 @@ async def predictDatawithProphet(data : DataCity):
 
 @router.post("/predict")
 async def predict(predict: Predict):
-    predicts.append(predict)
     if predict.model == 'Prophet':
         data_city : DataCity = DataCity(city=predict.town, date=predict.date)
         msg = await predictDatawithProphet(data_city)
