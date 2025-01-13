@@ -1,65 +1,97 @@
 import { useState } from 'react';
 import './App.css';
 import axios from 'axios';
-
-
-interface Message {
-  text: string;
-  sender: 'user' | 'bot';
-}
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function App() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState<string>('');
+  const [dateInput, setDateInput] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [prediction, setPrediction] = useState<string | null>(null);
 
-  const handleSend = async () => {
-    if (input.trim()) {
-      const newMessage: Message = { text: input, sender: 'user' };
-      setMessages([...messages, newMessage]);
-      setInput('');
+  const handlePrediction = async () => {
+    if (!dateInput.trim()) {
+      setErrorMessage('Veuillez sélectionner une date.');
+      setPrediction(null);
+      return;
+    }
 
-      // Envoyer le message au backend FastAPI
-      try {
-        const response = await axios.post('http://localhost:8000/predict', newMessage, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-    
-        console.log(response.data);
-        const data = await response.data
-        setMessages(data.messages);
-      } catch (error) {
-        console.error('Erreur lors de l\'envoi du message:', error);
-      }
+    setErrorMessage(null);
 
+    try {
+      const response = await axios.post(
+        'http://localhost:8000/predict',
+        { date: dateInput, town: "", sender: 'user' },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      setPrediction(response.data.prediction);
+    } catch (error) {
+      console.error('Erreur lors de la récupération de la prédiction:', error);
+      setPrediction('Erreur lors de la récupération de la prédiction.');
+    }
+  };
+
+  const handleHealthCheck = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/healthcheck');
+      toast.success(`Health Check Status: ${response.data.status}`);
+    } catch (error) {
+      console.error('Erreur lors de la vérification de l\'état du serveur:', error);
+      toast.error('Erreur lors de la vérification de l\'état du serveur.');
+    }
+  };
+
+  const handleHealthCheckAiModel = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/healthcheck_ai_model');
+      toast.success(`AI Model Health Check Status: ${response.data.status}`);
+    } catch (error) {
+      console.error('Erreur lors de la vérification de l\'état du modèle IA:', error);
+      toast.error('Erreur lors de la vérification de l\'état du modèle IA.');
+    }
+  };
+
+  const handleFit = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/fit');
+      toast.success(`Model Fit: ${response.data}`);
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du modèle:', error);
+      toast.error('Erreur lors de la mise à jour du modèle.');
     }
   };
 
   return (
-    <div className="chat-container">
-      <div className="chat-header">
+    <div className="prediction-container">
+      <header className="prediction-header">
         <h1>SkyPredict</h1>
-      </div>
-      <div className="chat-window">
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`message ${msg.sender === 'user' ? 'user' : 'bot'}`}
-          >
-            {msg.text}
-          </div>
-        ))}
-      </div>
+      </header>
+
       <div className="input-container">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message..."
-        />
-        <button onClick={handleSend}>Send</button>
+        <input type="date" value={dateInput} onChange={(e) => setDateInput(e.target.value)} />
+        <button onClick={handlePrediction}>Predict</button>
       </div>
+
+      {errorMessage && (
+        <div className="error-message">
+          <p>{errorMessage}</p>
+        </div>
+      )}
+
+      {prediction && (
+        <div className="prediction-result">
+          <h2>Prediction:</h2>
+          <p>{prediction}</p>
+        </div>
+      )}
+
+      <div className="action-buttons">
+        <button onClick={handleFit}>Fit</button>
+        <button onClick={handleHealthCheck}>Health Check</button>
+        <button onClick={handleHealthCheckAiModel}>AI Model Health Check</button>
+      </div>
+
+      <ToastContainer />
     </div>
   );
 }

@@ -6,26 +6,27 @@ from typing import List
 import os
 import pandas as pd
 import numpy as np
-from comet_ml import Experiment
+from sklearn.metrics import mean_squared_error
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.compose import make_column_transformer
 from sklearn.impute import SimpleImputer
 from sklearn.compose import make_column_selector
-import joblib
+from mlflow.models.signature import infer_signature
+from mlflow.tracking import MlflowClient
+import mlflow
+import mlflow.sklearn
+import time
 
-# Configuration de Comet.ml
-experiment = Experiment(
-    api_key="EulD4XLfDwCGLlvfZnDzz7Bx3",
-    project_name="general",
-    workspace="elimf"
+app = FastAPI(
+    title="AI Model API",
+    description="API pour la prédiction de la température",
+    version="0.1",
 )
 
-
-app = FastAPI()
 allowed_origins = [
-    "http://localhost:8000"
+    "http://localhost:8000",
 ]
 
 app.add_middleware(
@@ -38,17 +39,8 @@ app.add_middleware(
 
 # Définition du modèle de données pour la prédiction
 class PredictData(BaseModel):
-    features: List[dict]
+    features: List[float]
 
-# Sélectionner les colonnes numériques
-num_selector = make_column_selector(dtype_include=np.number)
-
-# Prétraitement des données
-num_tree_processor = SimpleImputer(strategy="mean", add_indicator=True)
-tree_preprocessor = make_column_transformer((num_tree_processor, num_selector))
-
-# Création du pipeline du modèle
-model_pipeline = make_pipeline(tree_preprocessor, RandomForestRegressor(n_estimators=100, random_state=42))
 
 # Fonctions de prétraitement
 def data_preparation_0(df):
@@ -87,76 +79,138 @@ def day_in_Life(df, number):
     return df
 
 
-# Fonction pour récupérer le modèle depuis Comet.ml
-def load_model_from_comet(model_name="TheModel"):
-    try:
-        # Récupérer le modèle depuis Comet.ml en utilisant son nom
-        model = experiment.get_model(model_name)
-        return model
-    except Exception as e:
-        print(f"Erreur lors du chargement du modèle depuis Comet.ml : {e}")
-        return None
-
-# Fonction pour enregistrer les métriques dans Comet.ml
-def log_metrics_to_comet(model, x=None, y=None, predictions=None):
-    if x is not None and y is not None:
-        experiment.log_metric("train_score", model.score(x, y))
-    if predictions is not None:
-        experiment.log_metric("prediction_sample", predictions[:10].tolist())
-
 @app.get("/fit")
 async def fit_model():
+    mlflow.set_tracking_uri("http://mlflow:5005")
     try:
         df = pd.read_csv("weather.csv")
+        if df.empty:
+            raise HTTPException(status_code=400, detail="Le fichier 'weather.csv' est vide.")
+    except pd.errors.ParserError:
+        raise HTTPException(status_code=400, detail="Le fichier 'weather.csv' a un format incorrect.")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Le fichier 'weather.csv' est introuvable.")
-    print("Fichier chargé avec succès")
+    
     # Prétraiter les données
     df = data_preparation_0(df)
     df = data_preparation_1(df)
     df = extract_date_features(df)
     df = day_in_Life(df, 2)
     
+    
+    # Convertir les colonnes susceptibles de contenir des valeurs manquantes en float
+    df[['precipitation', 'windspeed', 'pressure', 'year', 'month', 'day']] = df[['precipitation', 'windspeed', 'pressure', 'year', 'month', 'day']].astype('float64')
+    
+    # Sélectionner les colonnes numériques
+    num_selector = make_column_selector(dtype_include=np.number)
+    num_tree_processor = SimpleImputer(strategy="mean", add_indicator=True)
+    tree_preprocessor = make_column_transformer((num_tree_processor, num_selector))
+
+    # Création du pipeline du modèle
+    model = make_pipeline(tree_preprocessor, RandomForestRegressor(n_estimators=100, random_state=42))
+    
     # Sélectionner les features (X) et la cible (y)
     x = df[['precipitation', 'windspeed', 'pressure', 'year', 'month', 'day']]
     y = df['tempmean']
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
     
-    # Entraîner le modèle
-    model_pipeline.fit(x_train, y_train)
-    
-    # Enregistrer le modèle dans Comet.ml
-    joblib.dump(model_pipeline, "model_pipeline.pkl")
-    experiment.log_model("TheModel", "model_pipeline.pkl")
-    # Supprimer le fichier généré après avoir loggé le modèle
-    if os.path.exists("model_pipeline.pkl"):
-        os.remove("model_pipeline.pkl")
-        print("Fichier 'model_pipeline.pkl' supprimé avec succès.")
-    else:
-        print("Le fichier 'model_pipeline.pkl' n'existe pas.")  
-    # Log des métriques dans Comet.ml
-    log_metrics_to_comet(model_pipeline, x_test, y_test)
-    
-    return {"message": "Modèle entraîné et sauvegardé avec succès"}
+    # Vérifier si un run est déjà actif et terminer celui-ci si nécessaire
+    if mlflow.active_run():
+        mlflow.end_run()
+        
+    # Démarrer une session MLflow
+    start_time = time.time()
+    with mlflow.start_run():
+        # Entraîner le modèle
+        model.fit(x_train, y_train)
+        
+        # Calculer la performance sur le test
+        y_pred = model.predict(x_test)
+        signature = infer_signature(x_test, y_pred)
+        mse = mean_squared_error(y_test, y_pred)
+        score = model.score(x_test, y_test)
+        
+        # Enregistrer les paramètres et métriques dans MLflow
+        mlflow.log_param("model_type", "RandomForestRegressor")  # Enregistrer le type de modèle
+        mlflow.log_param("test_size", 0.2)  # Enregistrer la taille du test
+        mlflow.log_metrics({"mse": mean_squared_error(y_test, y_pred)})
+        
+        # Enregistrer le modèle dans MLflow
+        try:
+            mlflow.sklearn.log_model(sk_model=model,artifact_path="skypredict-model", signature=signature,registered_model_name="sk-learn-skypredict-model")
+        except Exception as e:
+            print(f"Erreur lors de l'enregistrement du modèle : {str(e)}")
+        
+        
+        # Enregistrer la durée de l'entraînement
+        mlflow.log_metric("training_duration", time.time() - start_time)
+        
+        # Retourner un message de succès
+        return JSONResponse(content={
+            "message": "Modèle entraîné et sauvegardé avec succès",
+            "model_name": "sk-learn-skypredict-model",  # Nom du modèle
+            "mse": mse,
+            "score": score, 
+            "training_duration": time.time() - start_time
+        })
+
 
 @app.post("/predict")
 async def predict(predict_data: PredictData):
-    # Charger le modèle depuis Comet.ml
-    model = load_model_from_comet()
-    if model is None:
-        raise HTTPException(status_code=404, detail="Modèle non trouvé dans Comet.ml. Entraînez d'abord le modèle.")
+    # Validation des données de prédiction
+    try:
+        # Assurez-vous que les données sont sous forme de liste
+        features_list = predict_data.features
+        if not isinstance(features_list, list):
+            raise HTTPException(status_code=400, detail="Les données de prédiction doivent être une liste.")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Les données de prédiction sont mal formatées.")
     
-    # Convertir les données de prédiction en DataFrame
-    features_df = pd.DataFrame(predict_data.features)
+    # Connexion à MLflow (en utilisant l'URL du conteneur Docker)
+    mlflow.set_tracking_uri("http://mlflow:5005")  # "mlflow" est le nom du service dans Docker Compose
+    
+    # Récupérer la dernière version du modèle depuis MLflow
+    model_name = "sk-learn-skypredict-model"  # Remplacez par le nom réel de votre modèle
+    client = MlflowClient()
+    
+    # Récupérer la dernière version du modèle
+    try:
+        latest_version = client.get_latest_versions(model_name, stages=["None"])[-1].version
+    except IndexError:
+        raise HTTPException(status_code=404, detail="Aucune version de modèle trouvée.")
+    
+    model_uri = f"models:/{model_name}/{latest_version}"
+    
+    # Charger le modèle
+    try:
+        model = mlflow.sklearn.load_model(model_uri)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors du chargement du modèle : {str(e)}")
+    
+    if model is None:
+        raise HTTPException(status_code=404, detail="Modèle non trouvé dans MLflow. Entraînez d'abord le modèle.")
+    
+    # Transformer les données de prédiction en DataFrame
+    features_df = pd.DataFrame([features_list], columns=["precipitation", "windspeed", "pressure", "year", "month", "day"])
     
     # Faire la prédiction
-    predictions = model.predict(features_df)
+    try:
+        predictions = model.predict(features_df)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la prédiction : {str(e)}")
     
-    # Log des prédictions dans Comet.ml
-    log_metrics_to_comet(model, predictions=predictions)
+    # Log des prédictions dans MLflow (facultatif)
+    with mlflow.start_run():
+        mlflow.log_param("input_features", features_list)  # Log des données d'entrée
+        mlflow.log_metric("prediction_count", len(predictions))  # Log du nombre de prédictions
     
-    return {"predictions": predictions.tolist()}
+    # Retourner les prédictions
+    return JSONResponse(content={"prediction": predictions.tolist()})
 
 @app.get("/healthcheck")
 async def healthcheck():
-    return JSONResponse(content={"status": "L'API est opérationnelle"})
+    return JSONResponse(content={"status": "L'API du modèle est opérationnelle"})
+
+@app.get("/explain")
+async def explain():
+    return JSONResponse(content={"message": "Explication de l'API"})
