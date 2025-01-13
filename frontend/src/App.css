@@ -27,93 +27,115 @@ body {
   width: 100%;
 }
 
-/* App.css */
-.prediction-container {
-  font-family: Arial, sans-serif;
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.prediction-header {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.prediction-header h1 {
-  color: #333;
-}
-
-.input-container {
+/* Container for the entire chat */
+.chat-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
+  height: 100%;
+  width: 100%;
+  max-width: 500px;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border: 1px solid #ddd;
+  position: relative;
 }
 
-.input-container input {
-  padding: 10px;
-  font-size: 16px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-}
-
-.input-container button {
-  padding: 10px;
-  font-size: 16px;
-  color: #fff;
+/* Header section */
+.chat-header {
   background-color: #007bff;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
+  padding: 20px;
+  text-align: center;
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  border-bottom: 1px solid #ddd;
+  flex-shrink: 0;
 }
 
-.input-container button:hover {
-  background-color: #0056b3;
-}
-
-.error-message {
-  background-color: #f8d7da;
-  color: #721c24;
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 10px;
-}
-
-.prediction-result {
-  background-color: #e9f7ef;
-  color: #155724;
-  padding: 10px;
-  border-radius: 4px;
-}
-
-.action-buttons {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.action-buttons button {
+/* Chat window */
+.chat-window {
   flex: 1;
-  padding: 10px;
+  padding: 15px;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+  height: 100%;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Styling for each message */
+.message {
+  max-width: 80%;
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  word-wrap: break-word;
   font-size: 14px;
-  color: #fff;
-  background-color: #28a745;
+  line-height: 1.5;
+}
+
+/* User message styling */
+.message.user {
+  background-color: #007bff;
+  color: white;
+  align-self: flex-end;
+  border-radius: 12px 12px 0 12px;
+}
+
+/* Bot message styling */
+.message.bot {
+  background-color: #e0e0e0;
+  color: #333;
+  align-self: flex-start;
+  border-radius: 12px 12px 12px 0;
+}
+
+/* Input and send button container */
+.input-container {
+  display: flex;
+  padding: 15px;
+  background-color: #fff;
+  border-top: 1px solid #ddd;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+/* Input field styling */
+input {
+  flex: 1;
+  padding: 10px 15px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  outline: none;
+  margin-right: 10px;
+  background-color: #f4f7fa;
+  transition: all 0.3s ease;
+}
+
+/* Focused input field */
+input:focus {
+  border-color: #007bff;
+  background-color: #ffffff;
+}
+
+/* Button styling */
+button {
+  padding: 10px 20px;
+  font-size: 14px;
+  background-color: #007bff;
+  color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 20px;
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
 
-.action-buttons button:hover {
-  background-color: #218838;
-}
-
-/* Toast notification customization */
-.Toastify__toast {
-  border-radius: 8px !important;
+/* Button hover effect */
+button:hover {
+  background-color: #0056b3;
 }
