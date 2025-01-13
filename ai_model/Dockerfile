@@ -1,6 +1,9 @@
 # Utiliser l'image officielle de Python
 FROM python:3.10-slim
 
+# Installe Git
+RUN apt-get update && apt-get install -y git
+
 # Définir le répertoire de travail
 WORKDIR /app
 

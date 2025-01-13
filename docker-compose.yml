@@ -1,38 +1,42 @@
-version: "3.8"
-
 services:
-  # Frontend React avec Nginx
   frontend:
     build:
-      context: ./frontend  # Dossier où se trouve le Dockerfile pour l'application React
+      context: ./frontend
     ports:
-      - "80:80"   # L'application React sera accessible sur le port 80
+      - "80:80"
     depends_on:
-      - backend   # Le frontend dépend du backend
+      - backend
     networks:
-      - app-network  # Utilisation d'un réseau Docker commun
+      - app-network
 
-  # Backend FastAPI pour gérer les requêtes et appeler l'API du modèle AI
   backend:
     build:
-      context: ./backend  # Dossier où se trouve le Dockerfile pour l'application FastAPI
+      context: ./backend
     ports:
-      - "8000:8000"   # API FastAPI accessible sur le port 8000
+      - "8000:8000"
     depends_on:
-      - ai_model      # Le backend dépend de l'API du modèle AI
+      - ai_model
     networks:
-      - app-network   # Utilisation d'un réseau Docker commun
+      - app-network
 
-  # API FastAPI pour l'IA (modèle AI)
   ai_model:
     build:
-      context: ./ai_model  # Dossier où se trouve le Dockerfile pour l'API du modèle AI
+      context: ./ai_model
     ports:
-      - "8001:8001"   # API FastAPI du modèle AI accessible sur le port 8001
+      - "8001:8001"
+    environment:
+      - GIT_PYTHON_REFRESH=quiet   
     networks:
-      - app-network   # Utilisation d'un réseau Docker commun
-
-# Définition du réseau Docker partagé pour tous les services
+      - app-network
+  mlflow:
+    build:
+      context: ./mlflow
+    ports:
+      - "5005:5005"
+    networks:
+      - app-network
+    volumes:
+      - ./mlflow:/mlflow   
 networks:
   app-network:
     driver: bridge
