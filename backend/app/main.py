@@ -1,26 +1,31 @@
 import logging
-import sys
-import os
 import httpx
 from fastapi import FastAPI, APIRouter, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import List
-
-# Ajouter /app au sys.path pour que les modules app soient trouvés
-sys.path.append(os.path.dirname(__file__))
+from typing import List, Optional
+from datetime import date
 
 # Définir le modèle Message
-class Message(BaseModel):
-    text: str
-    sender: str
+class Predict(BaseModel):
+    town: str 
+    sender: str 
+    date: date 
+    model:str 
+    prediction: Optional[str] = None
     
-# Initialiser FastAPI
-app = FastAPI()
+# Initialiser l'application FastAPI
+app = FastAPI(
+    title="Backend API",
+    description="API pour le Chatbot",
+    version="0.1",
+)
 
+# Liste des origines autorisées pour CORS
 allowed_origins = [
-    "http://localhost"
+    "http://localhost",
+    "http://localhost:5173",
 ]
 
 # Ajouter le middleware CORS pour autoriser les requêtes depuis les origines spécifiées
@@ -41,7 +46,6 @@ predicts: List[Predict] = []
 # Route pour effectuer une prédiction
 @router.post("/predict")
 async def predict(predict: Predict):
-    print(predict)
     # Ajouter la prédiction de l'utilisateur à la liste des prédictions
     predicts.append(predict)
     
@@ -136,19 +140,6 @@ async def healthcheck_ai_model():
         logging.error(f"Erreur inattendue: {e}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
 
-
-
-@router.post("/predict")
-async def predict(message: Message):
-    # Ajouter le message reçu à la liste
-    messages.append(message)
-    
-    external_response = await call_external_api()
-    # Simuler une réponse du bot
-    bot_message = Message(text=external_response['status'], sender="bot")
-    messages.append(bot_message)
-    
-    return {"messages": messages}
 
 # Inclure les routes dans l'application FastAPI
 app.include_router(router)
