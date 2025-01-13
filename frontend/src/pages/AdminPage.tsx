@@ -23,7 +23,8 @@ const countries = [
     { name: 'Perpignan', flag: '🇫🇷' },
     { name: 'Sonnblick', flag: '🇦🇹' },
     { name: 'Stockholm', flag: '🇸🇪' },
-    { name: 'Tours', flag: '🇫🇷' }
+    { name: 'Tours', flag: '🇫🇷' },
+    { name: 'Kassel', flag: '🇩🇪' }
 ];
 
 function AdminPage() {
