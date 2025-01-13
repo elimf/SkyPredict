@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import numpy as np
 from comet_ml import Experiment
+from comet_ml import API
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
@@ -14,6 +15,9 @@ from sklearn.compose import make_column_transformer
 from sklearn.impute import SimpleImputer
 from sklearn.compose import make_column_selector
 import joblib
+from prophet import Prophet
+from datetime import datetime
+
 
 # Configuration de Comet.ml
 experiment = Experiment(
@@ -40,7 +44,18 @@ app.add_middleware(
 class PredictData(BaseModel):
     features: List[dict]
 
-# Sélectionner les colonnes numériques
+class DataCity(BaseModel):
+    city: str
+    date: str
+
+class PredictionData(BaseModel):
+    date : datetime
+    yhat: float
+    yhat_lower: float
+    yhat_upper: float
+class TrainRequest(BaseModel):
+    city: str
+# Sélectilonner les colonnes numériques
 num_selector = make_column_selector(dtype_include=np.number)
 
 # Prétraitement des données
@@ -78,7 +93,9 @@ def extract_date_features(df):
     df['year'] = df['DATE'].dt.year
     df['month'] = df['DATE'].dt.month
     df['day'] = df['DATE'].dt.day
-    df = df.drop(columns='DATE')
+    df['dayofweek_num']=df['DATE'].dt.dayofweek
+    df['dayofweek_name']=df['DATE'].dt.day_name()
+    #df = df.drop(columns='DATE')
     return df
 
 def day_in_Life(df, number):
@@ -86,6 +103,10 @@ def day_in_Life(df, number):
         df[[f"tempmean{i}", f"tempmax{i}"]] = df.groupby(['town'])[["tempmean", "tempmax"]].shift(i)
     return df
 
+def calcul_day_since_last(date: str):
+    start_date = datetime(2010, 1, 1)
+    ending_date = pd.to_datetime(date, format="%Y-%m-%d")
+    return (ending_date - start_date).days
 
 # Fonction pour récupérer le modèle depuis Comet.ml
 def load_model_from_comet(model_name="TheModel"):
@@ -93,6 +114,13 @@ def load_model_from_comet(model_name="TheModel"):
         # Récupérer le modèle depuis Comet.ml en utilisant son nom
         model = experiment.get_model(model_name)
         return model
+    except Exception as e:
+        print(f"Erreur lors du chargement du modèle depuis Comet.ml : {e}")
+        return None
+
+def load_model_prophet(model_name="TheModel"):
+    try:
+        return joblib.load(model_name)
     except Exception as e:
         print(f"Erreur lors du chargement du modèle depuis Comet.ml : {e}")
         return None
@@ -139,6 +167,38 @@ async def fit_model():
     
     return {"message": "Modèle entraîné et sauvegardé avec succès"}
 
+@app.post("/fit-prophet")
+async def fit_prophet(data : TrainRequest):
+    try:
+        df = pd.read_csv("weather.csv")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Le fichier 'weather.csv' est introuvable.")
+    print("Fichier chargé avec succès")
+    # Prétraiter les données
+    df = data_preparation_0(df)
+    df = data_preparation_1(df)
+    df = extract_date_features(df)
+    df = day_in_Life(df, 2)
+
+    df['DATE'] = pd.to_datetime(df['DATE'], format='%Y%m%d')
+    df = df.rename(columns={'DATE': 'ds', 'tempmean': 'y'})
+    df_city = df[df['town'] == data.city]
+    df_city = df_city[['ds', 'y', 'tempmean1',	'tempmax1',	'tempmean2','tempmax2','year','month','day', 'dayofweek_name', 'dayofweek_num']]
+    df_city
+    model = Prophet(changepoint_prior_scale=0.01).fit(df_city)
+
+    model_name = "model-" + data.city + '-prophet'
+
+    if os.path.exists(model_name):
+        os.remove(model_name)
+        print("Fichier "+model_name+" supprimé avec succès.")
+    else:
+        print("Le fichier "+model_name+" n'existe pas.")
+
+    joblib.dump(model, model_name)
+
+    return {"message": "Modèle entraîné et sauvegardé avec succès"}
+
 @app.post("/predict")
 async def predict(predict_data: PredictData):
     # Charger le modèle depuis Comet.ml
@@ -157,6 +217,27 @@ async def predict(predict_data: PredictData):
     
     return {"predictions": predictions.tolist()}
 
+@app.post("/predict-prophet")
+async def predict(data : DataCity):
+    name_model = "model-" + data.city + '-prophet'
+    model = load_model_prophet(model_name=name_model)
+    if model is None:
+        raise HTTPException(status_code=404, detail="Modèle non trouvé dans Comet.ml. Entraînez d'abord le modèle.")
+
+    future = model.make_future_dataframe(periods=calcul_day_since_last(data.date))
+    forecast = model.predict(future)
+    last_row = forecast.iloc[-1]
+    ds_value = last_row['ds']
+    yhat_value = last_row['yhat']
+    yhat_lower_value = last_row['yhat_lower']
+    yhat_upper_value = last_row['yhat_upper']
+    prediction_data = PredictionData(
+        date=ds_value,
+        yhat=yhat_value,
+        yhat_lower=yhat_lower_value,
+        yhat_upper=yhat_upper_value
+    )
+    return {"predictions": prediction_data}
 @app.get("/healthcheck")
 async def healthcheck():
     return JSONResponse(content={"status": "L'API est opérationnelle"})
