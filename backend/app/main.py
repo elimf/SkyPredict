@@ -1,30 +1,26 @@
 import logging
+import sys
+import os
 import httpx
 from fastapi import FastAPI, APIRouter, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import List, Optional
-from datetime import date
+from typing import List
 
-# Définir le modèle de données pour la prédiction
-class Predict(BaseModel):
-    town: str 
-    sender: str 
-    date: date  
-    prediction: Optional[str] = None
+# Ajouter /app au sys.path pour que les modules app soient trouvés
+sys.path.append(os.path.dirname(__file__))
 
-# Initialiser l'application FastAPI
-app = FastAPI(
-    title="Backend API",
-    description="API pour le Chatbot",
-    version="0.1",
-)
+# Définir le modèle Message
+class Message(BaseModel):
+    text: str
+    sender: str
+    
+# Initialiser FastAPI
+app = FastAPI()
 
-# Liste des origines autorisées pour CORS
 allowed_origins = [
-    "http://localhost",
-    "http://localhost:5173",
+    "http://localhost"
 ]
 
 # Ajouter le middleware CORS pour autoriser les requêtes depuis les origines spécifiées
@@ -32,7 +28,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["X-Requested-With", "Content-Type"],
 )
 
@@ -139,6 +135,20 @@ async def healthcheck_ai_model():
     except Exception as e:
         logging.error(f"Erreur inattendue: {e}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
+
+
+
+@router.post("/predict")
+async def predict(message: Message):
+    # Ajouter le message reçu à la liste
+    messages.append(message)
+    
+    external_response = await call_external_api()
+    # Simuler une réponse du bot
+    bot_message = Message(text=external_response['status'], sender="bot")
+    messages.append(bot_message)
+    
+    return {"messages": messages}
 
 # Inclure les routes dans l'application FastAPI
 app.include_router(router)
