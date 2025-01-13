@@ -11,10 +11,24 @@ from datetime import date
 class Predict(BaseModel):
     town: str 
     sender: str 
-    date: date 
+    date: str
     model:str 
     prediction: Optional[str] = None
-    
+class DataCity(BaseModel) :
+    city: str
+    date: str
+class PredictionData(BaseModel):
+    date : date
+    yhat: float
+    yhat_lower: float
+    yhat_upper: float
+
+class Message(BaseModel):
+    text: str
+    sender: str
+
+class TrainRequest(BaseModel):
+    city: str
 # Initialiser l'application FastAPI
 app = FastAPI(
     title="Backend API",
@@ -40,23 +54,14 @@ app.add_middleware(
 # Définir le routeur pour les différentes routes de l'API
 router = APIRouter()
 
-# Liste pour stocker les prédictions effectuées
-predicts: List[Predict] = []
-
-# Route pour effectuer une prédiction
-@router.post("/predict")
-async def predict(predict: Predict):
-    # Ajouter la prédiction de l'utilisateur à la liste des prédictions
-    predicts.append(predict)
-    
+async def predictRandomForest(data: DataCity):
     # Appeler directement l'API externe pour obtenir la prédiction
     url = "http://ai_model:8001/predict"
-    # ! Attention: le modèle de données de l'API externe doit correspondre à celui de l'API Backend
-    data = {"text": predict.text, "sender": predict.sender}
-    
+    data.city = data.city.upper()
+
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=data)
+            response = await client.post(url, json=data.dict())
             response.raise_for_status()  # Vérifier la réponse HTTP
             external_response = response.json()  # Extraire le JSON de la réponse
     except httpx.RequestError as e:
@@ -68,23 +73,82 @@ async def predict(predict: Predict):
     except Exception as e:
         logging.error(f"Erreur inattendue: {e}")
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
-    
+
     # Simuler la réponse du bot et l'ajouter à la liste des prédictions
-    bot_predict = Predict(town=predict.town, sender="bot", date=predict.date, prediction=external_response['predictions'])
-    predicts.append(bot_predict)
-    
-    return JSONResponse(content={"predicts": predicts})
+    msg = f"La température prévue pour le {data.date} est en moyenne de {external_response['prediction'][0]:.2f}°C."
+    print(msg)
+    return Message(text=msg, sender="bot")
+
+
+
+
+async def predictDatawithProphet(data : DataCity):
+    url = "http://ai_model:8001/predict-prophet"
+    data.city = data.city.upper()
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=data.dict())
+            response.raise_for_status()
+        predict1 = PredictionData(**response.json()['predictions'])
+        msg = f"La température prévue pour le {predict1.date.strftime('%d/%m/%Y')} est en moyenne de {predict1.yhat:.2f}°C, avec une variation entre {predict1.yhat_lower:.2f}°C et {predict1.yhat_upper:.2f}°C."
+        mee = Message(text=msg, sender="bot")
+        return mee
+    except httpx.RequestError as e:
+        logging.error(f"Erreur de connexion à l'API externe: {e}")
+        raise HTTPException(status_code=502, detail="Erreur de connexion à l'API externe")
+    except httpx.HTTPStatusError as e:
+        logging.error(f"Erreur HTTP depuis l'API externe: {e}")
+        raise HTTPException(status_code=502, detail=f"Erreur HTTP depuis l'API externe: {e.response.status_code}")
+    except Exception as e:
+        logging.error(f"Erreur inattendue: {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
+
+@router.post("/predict")
+async def predict(predict: Predict):
+    if predict.model == 'Prophet':
+        data_city : DataCity = DataCity(city=predict.town, date=predict.date)
+        msg = await predictDatawithProphet(data_city)
+        return {"messages": msg}
+    else:
+        data_city : DataCity = DataCity(city=predict.town, date=predict.date)
+        msg = await predictRandomForest(data_city)
+        return {"messages": msg}
+
+
 
 # Route pour entraîner le modèle
-@router.get("/fit")
-async def training():
+@router.post("/fit")
+async def training(train :TrainRequest):
     url = "http://ai_model:8001/fit"
     try:
         timeout = httpx.Timeout(connect=10.0, read=120.0, write=120.0, pool=120.0)
+        train.city = train.city.upper()
         
         # Utiliser l'objet Timeout dans AsyncClient
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(url)
+            response = await client.post(url,json=train.dict())
+            response.raise_for_status()  # Vérifier la réponse HTTP
+            return response.json()
+    except httpx.RequestError as e:
+        logging.error(f"Erreur de connexion à l'API externe: {e}")
+        raise HTTPException(status_code=502, detail="Erreur de connexion à l'API externe")
+    except httpx.HTTPStatusError as e:
+        logging.error(f"Erreur HTTP depuis l'API externe: {e}")
+        raise HTTPException(status_code=502, detail=f"Erreur HTTP depuis l'API externe: {e.response.status_code}")
+    except Exception as e:
+        logging.error(f"Erreur inattendue: {e}")
+        raise HTTPException(status_code=500, detail="Erreur interne du serveur")
+
+
+@router.post("/fit-prophet")
+async def trainingProphet(train :TrainRequest):
+    url = "http://ai_model:8001/fit-prophet"
+    try:
+        timeout = httpx.Timeout(connect=10.0, read=120.0, write=120.0, pool=120.0)
+        train.city = train.city.upper()
+        # Utiliser l'objet Timeout dans AsyncClient
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, json=train.dict())
             response.raise_for_status()  # Vérifier la réponse HTTP
             return response.json()
     except httpx.RequestError as e:
