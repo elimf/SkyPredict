@@ -76,7 +76,7 @@ async def predictRandomForest(data: DataCity):
         raise HTTPException(status_code=500, detail="Erreur interne du serveur")
 
     # Simuler la réponse du bot et l'ajouter à la liste des prédictions
-    msg = f"La température prévue pour le {data.date.strftime('%d/%m/%Y')} est en moyenne de {external_response['prediction'][0]:.2f}°C."
+    msg = f"La température prévue pour le {data.date} est en moyenne de {external_response['prediction'][0]:.2f}°C."
     print(msg)
     return Message(text=msg, sender="bot")
 

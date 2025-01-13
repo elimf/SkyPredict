@@ -61,7 +61,7 @@ function ChatPage() {
       return;
     }
 
-    const newMessage: Message = { text: `${selectedCountry} - ${selectedDate} (${selectedModel})`, sender: 'user' };
+    const newMessage: Message = { text: `(${selectedModel}) :Pour  ${selectedCountry} à la date suivante ${selectedDate}`, sender: 'user' };
     setMessages((prevMessages) => [...prevMessages, newMessage]);
 
     const newPrediction: Predict = {
