@@ -11,11 +11,19 @@ const model = [
 ];
 
 const countries = [
-  { name: 'Basel', flag: '🇨🇭' },
-  { name: 'Roma', flag: '🇮🇹' },
-  { name: 'Budapest', flag: '🇩🇪' },
-  { name: 'India', flag: '🇮🇳' },
-  { name: 'Japan', flag: '🇯🇵' },
+    { name: 'Basel', flag: '🇨🇭' },
+    { name: 'Roma', flag: '🇮🇹' },
+    { name: 'Budapest', flag: '🇭🇺' },
+    { name: 'Ljubljana', flag: '🇸🇮' },
+    { name: 'Maastricht', flag: '🇳🇱' },
+    { name: 'Malmo', flag: '🇸🇪' },
+    { name: 'Montelimar', flag: '🇫🇷' },
+    { name: 'Muenchen', flag: '🇩🇪' },
+    { name: 'Oslo', flag: '🇩🇰' },
+    { name: 'Perpignan', flag: '🇫🇷' },
+    { name: 'Sonnblick', flag: '🇦🇹' },
+    { name: 'Stockholm', flag: '🇸🇪' },
+    { name: 'Tours', flag: '🇫🇷' }
 ];
 
 function AdminPage() {
