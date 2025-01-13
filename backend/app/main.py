@@ -58,15 +58,15 @@ router = APIRouter()
 predicts: List[Predict] = []
 
 
-async def predictRandomForest(predict: Predict):
+async def predictRandomForest(data: DataCity):
     # Appeler directement l'API externe pour obtenir la prédiction
     url = "http://ai_model:8001/predict"
     # ! Attention: le modèle de données de l'API externe doit correspondre à celui de l'API Backend
-    data = {"text": predict.text, "sender": predict.sender}
+    data.city = data.city.upper()
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=data)
+            response = await client.post(url, json=data.dict())
             response.raise_for_status()  # Vérifier la réponse HTTP
             external_response = response.json()  # Extraire le JSON de la réponse
     except httpx.RequestError as e:
@@ -90,7 +90,7 @@ async def predictRandomForest(predict: Predict):
 
 
 async def predictDatawithProphet(data : DataCity):
-    url = "http://127.0.0.1:8001/predict-prophet"
+    url = "http://ai_model:8001/predict-prophet"
     data.city = data.city.upper()
     try:
         async with httpx.AsyncClient() as client:
@@ -118,21 +118,23 @@ async def predict(predict: Predict):
         msg = await predictDatawithProphet(data_city)
         return {"messages": msg}
     else:
-        msg = await predictRandomForest(predict)
+        data_city : DataCity = DataCity(city=predict.town, date=predict.date)
+        msg = await predictRandomForest(data_city)
         return {"messages": msg}
 
 
 
 # Route pour entraîner le modèle
-@router.get("/fit")
-async def training():
+@router.post("/fit")
+async def training(train :TrainRequest):
     url = "http://ai_model:8001/fit"
     try:
         timeout = httpx.Timeout(connect=10.0, read=120.0, write=120.0, pool=120.0)
+        train.city = train.city.upper()
         
         # Utiliser l'objet Timeout dans AsyncClient
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(url)
+            response = await client.post(url,json=train.dict())
             response.raise_for_status()  # Vérifier la réponse HTTP
             return response.json()
     except httpx.RequestError as e:
@@ -148,7 +150,7 @@ async def training():
 
 @router.post("/fit-prophet")
 async def trainingProphet(train :TrainRequest):
-    url = "http://127.0.0.1:8001/fit-prophet"
+    url = "http://ai_model:8001/fit-prophet"
     try:
         timeout = httpx.Timeout(connect=10.0, read=120.0, write=120.0, pool=120.0)
         train.city = train.city.upper()

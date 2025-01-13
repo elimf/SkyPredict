@@ -115,8 +115,8 @@ def load_model_prophet(model_name="TheModel"):
         print(f"Erreur lors du chargement du modèle depuis Comet.ml : {e}")
         return None
 
-@app.get("/fit")
-async def fit_model():
+@app.post("/fit")
+async def fit_model(data : TrainRequest):
     mlflow.set_tracking_uri("http://mlflow:5005")
     try:
         df = pd.read_csv("weather.csv")
@@ -132,10 +132,11 @@ async def fit_model():
     df = data_preparation_1(df)
     df = extract_date_features(df)
     df = day_in_Life(df, 2)
+    df_city = df[df['town'] == data.city]
     
     
     # Convertir les colonnes susceptibles de contenir des valeurs manquantes en float
-    df[['precipitation', 'windspeed', 'pressure', 'year', 'month', 'day']] = df[['precipitation', 'windspeed', 'pressure', 'year', 'month', 'day']].astype('float64')
+    df_city[['precipitation', 'windspeed', 'pressure', 'year', 'month', 'day']] = df_city[['precipitation', 'windspeed', 'pressure', 'year', 'month', 'day']].astype('float64')
     
     # Sélectionner les colonnes numériques
     num_selector = make_column_selector(dtype_include=np.number)
@@ -146,10 +147,10 @@ async def fit_model():
     model = make_pipeline(tree_preprocessor, RandomForestRegressor(n_estimators=100, random_state=42))
     
     # Sélectionner les features (X) et la cible (y)
-    x = df[['precipitation', 'windspeed', 'pressure', 'year', 'month', 'day']]
-    y = df['tempmean']
+    x = df_city[['precipitation', 'windspeed', 'pressure', 'year', 'month', 'day']]
+    y = df_city['tempmean']
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
-    
+    model_name = "model-" + data.city + '-forest'
     # Vérifier si un run est déjà actif et terminer celui-ci si nécessaire
     if mlflow.active_run():
         mlflow.end_run()
@@ -173,7 +174,7 @@ async def fit_model():
         
         # Enregistrer le modèle dans MLflow
         try:
-            mlflow.sklearn.log_model(sk_model=model,artifact_path="skypredict-model", signature=signature,registered_model_name="sk-learn-skypredict-model")
+            mlflow.sklearn.log_model(sk_model=model,artifact_path="skypredict-model", signature=signature,registered_model_name=model_name)
         except Exception as e:
             print(f"Erreur lors de l'enregistrement du modèle : {str(e)}")
         
@@ -184,7 +185,7 @@ async def fit_model():
         # Retourner un message de succès
         return JSONResponse(content={
             "message": "Modèle entraîné et sauvegardé avec succès",
-            "model_name": "sk-learn-skypredict-model",  # Nom du modèle
+            "model_name": model_name,  # Nom du modèle
             "mse": mse,
             "score": score, 
             "training_duration": time.time() - start_time
@@ -224,11 +225,16 @@ async def fit_prophet(data : TrainRequest):
     return {"message": "Modèle entraîné et sauvegardé avec succès"}
 
 @app.post("/predict")
-async def predict(predict_data: PredictData):
+async def predict(data: DataCity):
     # Validation des données de prédiction
+    
     try:
         # Assurez-vous que les données sont sous forme de liste
-        features_list = predict_data.features
+        ending_date = pd.to_datetime(data.date, format="%Y-%m-%d")
+        year = ending_date.year
+        month = ending_date.month
+        day = ending_date.day
+        features_list = [5.2, 10.3, 1012, year, month, day]
         if not isinstance(features_list, list):
             raise HTTPException(status_code=400, detail="Les données de prédiction doivent être une liste.")
     except ValueError:
@@ -238,7 +244,7 @@ async def predict(predict_data: PredictData):
     mlflow.set_tracking_uri("http://mlflow:5005")  # "mlflow" est le nom du service dans Docker Compose
     
     # Récupérer la dernière version du modèle depuis MLflow
-    model_name = "sk-learn-skypredict-model"  # Remplacez par le nom réel de votre modèle
+    model_name = "model-" + data.city + '-forest'
     client = MlflowClient()
     
     # Récupérer la dernière version du modèle

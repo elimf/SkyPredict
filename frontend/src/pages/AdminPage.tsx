@@ -67,7 +67,7 @@ function AdminPage() {
       }
     }else{
       try {
-        const response = await axios.get('http://localhost:8000/fit');
+        const response = await axios.post('http://localhost:8000/fit',{city : selectedCountry});
         toast.success(`Model Fit: ${response.data.message}`);
       } catch (error) {
         console.error('Erreur lors de la mise à jour du modèle:', error);
