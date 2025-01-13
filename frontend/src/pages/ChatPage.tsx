@@ -8,11 +8,16 @@ interface Message {
   text: string;
   sender: 'user' | 'bot';
 }
-
+interface Predict {
+  sender: 'user' | 'bot';
+  town: string
+  date: string
+  model:string
+}
 const countries = [
   { name: 'Basel', flag: '🇨🇭' },
   { name: 'Roma', flag: '🇮🇹' },
-  { name: 'Germany', flag: '🇩🇪' },
+  { name: 'Budapest', flag: '🇩🇪' },
   { name: 'India', flag: '🇮🇳' },
   { name: 'Japan', flag: '🇯🇵' },
 ];
@@ -36,9 +41,9 @@ function ChatPage() {
 
     const newMessage: Message = { text: `${selectedCountry} - ${selectedDate} (${selectedModel})`, sender: 'user' };
     setMessages([...messages, newMessage]);
-
+    const newPrediction : Predict= {town : selectedCountry, date : selectedDate, model: selectedModel, sender: 'user'}
     try {
-      const response = await axios.post('http://localhost:8000/predict', { city: selectedCountry, date: selectedDate, model: selectedModel });
+      const response = await axios.post('http://localhost:8000/predict', newPrediction);
       const data = response.data;
       setMessages([...messages, { text: data.response, sender: 'bot' }]);
       toast.success('Prédiction réussie !');

@@ -20,6 +20,7 @@ import mlflow.sklearn
 import time
 from prophet import Prophet
 from datetime import datetime
+import joblib
 
 app = FastAPI(
     title="AI Model API",
@@ -113,13 +114,6 @@ def load_model_prophet(model_name="TheModel"):
     except Exception as e:
         print(f"Erreur lors du chargement du modèle depuis Comet.ml : {e}")
         return None
-
-# Fonction pour enregistrer les métriques dans Comet.ml
-def log_metrics_to_comet(model, x=None, y=None, predictions=None):
-    if x is not None and y is not None:
-        experiment.log_metric("train_score", model.score(x, y))
-    if predictions is not None:
-        experiment.log_metric("prediction_sample", predictions[:10].tolist())
 
 @app.get("/fit")
 async def fit_model():
