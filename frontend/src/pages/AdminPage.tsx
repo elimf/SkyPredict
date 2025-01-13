@@ -114,8 +114,6 @@ function AdminPage() {
                 disabled={loading}>{loading ? 'Loading...' : 'AI Model Health Check'}</button>
       </div>
       <div className="logs-container">
-        <h2>System Logs</h2>
-        {/* Placeholder for system logs */}
       </div>
       <ToastContainer/>
     </div>
