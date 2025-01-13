@@ -57,7 +57,6 @@ router = APIRouter()
 async def predictRandomForest(data: DataCity):
     # Appeler directement l'API externe pour obtenir la prédiction
     url = "http://ai_model:8001/predict"
-    # ! Attention: le modèle de données de l'API externe doit correspondre à celui de l'API Backend
     data.city = data.city.upper()
 
     try:
